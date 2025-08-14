@@ -1,0 +1,627 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Globus Music Hall - Меню</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2c1810 50%, #1a1a1a 100%);
+            color: #f5f5f5;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px 10px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .header {
+            background: linear-gradient(45deg, #ff8c00, #ffc107);
+            padding: 30px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '🎵';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 80px;
+            opacity: 0.1;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .header::after {
+            content: '🎵';
+            position: absolute;
+            bottom: -20px;
+            left: -20px;
+            font-size: 60px;
+            opacity: 0.1;
+            animation: float 3s ease-in-out infinite reverse;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            color: #1a1a1a;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #2c1810;
+            font-size: 1em;
+            font-weight: 500;
+        }
+
+        .menu-content {
+            padding: 0 20px 20px;
+        }
+
+        .category {
+            margin: 25px 0;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .category-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            background: linear-gradient(45deg, #333, #444);
+            border-radius: 12px;
+            border-left: 4px solid #ffc107;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .category-title::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 40%, rgba(255, 193, 7, 0.1) 50%, transparent 60%);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .featured-category {
+            background: linear-gradient(45deg, #8b008b, #ff00ff) !important;
+            color: #ffffff !important;
+            border-left: 4px solid #1a1a1a !important;
+            box-shadow: 0 8px 20px rgba(139, 0, 139, 0.3);
+            transform: scale(1.02);
+            font-size: 1.6em !important;
+            text-align: center;
+            position: relative;
+        }
+
+        .featured-category::before {
+            content: '⭐ ОСОБЫЕ БЛЮДА ⭐';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.4em;
+            background: #1a1a1a;
+            color: #ff00ff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: normal;
+        }
+
+        .menu-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 193, 7, 0.1);
+            border-radius: 8px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-info {
+            flex: 1;
+            margin-right: 15px;
+        }
+
+        .item-name {
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #ffc107;
+            margin-bottom: 3px;
+        }
+
+        .item-description {
+            font-size: 0.85em;
+            color: #cccccc;
+            line-height: 1.4;
+        }
+
+        .item-price {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #ff8c00;
+            white-space: nowrap;
+            background: rgba(255, 140, 0, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 140, 0, 0.3);
+        }
+
+        .cart {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-top: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .cart h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #ffc107;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 193, 7, 0.1);
+        }
+
+        .cart-item:last-child {
+            border-bottom: none;
+        }
+
+        .cart-item button {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .cart-total {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ff8c00;
+            margin-top: 15px;
+            text-align: right;
+        }
+
+        .order-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #ff8c00, #ffc107);
+            color: #1a1a1a;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .order-button:hover {
+            transform: scale(1.05);
+        }
+
+        .order-confirmation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .confirmation-content {
+            background: #222;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            color: #f5f5f5;
+        }
+
+        .confirmation-content h2 {
+            color: #ffc107;
+            margin-bottom: 20px;
+        }
+
+        .confirmation-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+        }
+
+        .confirmation-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .confirmation-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .confirm-button {
+            background: #28a745;
+            color: white;
+        }
+
+        .cancel-button {
+            background: #ff4444;
+            color: white;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .wifi-code {
+            background: rgba(255, 193, 7, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px dashed #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><span class="music-icon">🎵</span> Globus Music Hall</h1>
+            <div class="subtitle">Концертная площадка</div>
+        </div>
+
+        <div class="menu-content">
+            <!-- Салаты -->
+            <div class="category">
+                <div class="category-title">🥗 Салаты</div>
+                <div class="menu-item" data-name="Цезарь с курицей" data-price="450">
+                    <div class="item-info">
+                        <div class="item-name">Цезарь с курицей</div>
+                        <div class="item-description">Листья романо, курица гриль, пармезан, соус цезарь</div>
+                    </div>
+                    <div class="item-price">450₽</div>
+                </div>
+                <div class="menu-item" data-name="Пивной салат" data-price="390">
+                    <div class="item-info">
+                        <div class="item-name">Пивной салат</div>
+                        <div class="item-description">Микс салатов, бекон, крутоны, пивная заправка</div>
+                    </div>
+                    <div class="item-price">390₽</div>
+                </div>
+            </div>
+
+            <!-- Горячие закуски -->
+            <div class="category">
+                <div class="category-title">🔥 Горячие закуски</div>
+                <div class="menu-item" data-name="Куриные крылья BBQ" data-price="520">
+                    <div class="item-info">
+                        <div class="item-name">Куриные крылья BBQ</div>
+                        <div class="item-description">8 шт. с соусом барбекю и сельдереем</div>
+                    </div>
+                    <div class="item-price">520₽</div>
+                </div>
+                <div class="menu-item" data-name="Сырные палочки" data-price="380">
+                    <div class="item-info">
+                        <div class="item-name">Сырные палочки</div>
+                        <div class="item-description">Моцарелла в панировке, соус маринара</div>
+                    </div>
+                    <div class="item-price">380₽</div>
+                </div>
+                <div class="menu-item" data-name="Кольца кальмара" data-price="460">
+                    <div class="item-info">
+                        <div class="item-name">Кольца кальмара</div>
+                        <div class="item-description">В хрустящей панировке с чесночным соусом</div>
+                    </div>
+                    <div class="item-price">460₽</div>
+                </div>
+            </div>
+
+            <!-- Пивные тарелки -->
+            <div class="category">
+                <div class="category-title featured-category">🍺 Пивные тарелки</div>
+                <div class="menu-item" data-name="Мега тарелка" data-price="1290">
+                    <div class="item-info">
+                        <div class="item-name">Мега тарелка</div>
+                        <div class="item-description">Колбаски, ребрышки, крылья, сыры, соленья</div>
+                    </div>
+                    <div class="item-price">1290₽</div>
+                </div>
+                <div class="menu-item" data-name="Баварская тарелка" data-price="890">
+                    <div class="item-info">
+                        <div class="item-name">Баварская тарелка</div>
+                        <div class="item-description">Колбаски, квашеная капуста, картофель</div>
+                    </div>
+                    <div class="item-price">890₽</div>
+                </div>
+                <div class="menu-item" data-name="Сырная тарелка" data-price="720">
+                    <div class="item-info">
+                        <div class="item-name">Сырная тарелка</div>
+                        <div class="item-description">5 видов сыра, орехи, виноград, крекеры</div>
+                    </div>
+                    <div class="item-price">720₽</div>
+                </div>
+                <div class="menu-item" data-name="Мясная тарелка" data-price="950">
+                    <div class="item-info">
+                        <div class="item-name">Мясная тарелка</div>
+                        <div class="item-description">Ассорти колбас, копчености, горчица</div>
+                    </div>
+                    <div class="item-price">950₽</div>
+                </div>
+            </div>
+
+            <!-- Бургеры -->
+            <div class="category">
+                <div class="category-title">🍔 Бургеры</div>
+                <div class="menu-item" data-name="Хоп Бургер" data-price="650">
+                    <div class="item-info">
+                        <div class="item-name">Хоп Бургер</div>
+                        <div class="item-description">Говядина, чеддер, бекон, пивной соус</div>
+                    </div>
+                    <div class="item-price">650₽</div>
+                </div>
+                <div class="menu-item" data-name="Чикен Бургер" data-price="580">
+                    <div class="item-info">
+                        <div class="item-name">Чикен Бургер</div>
+                        <div class="item-description">Куриная грудка, моцарелла, томат</div>
+                    </div>
+                    <div class="item-price">580₽</div>
+                </div>
+            </div>
+
+            <!-- Пицца -->
+            <div class="category">
+                <div class="category-title">🍕 Пицца</div>
+                <div class="menu-item" data-name="Пепперони" data-price="690">
+                    <div class="item-info">
+                        <div class="item-name">Пепперони</div>
+                        <div class="item-description">Томатный соус, моцарелла, пепперони</div>
+                    </div>
+                    <div class="item-price">690₽</div>
+                </div>
+                <div class="menu-item" data-name="Мясная" data-price="790">
+                    <div class="item-info">
+                        <div class="item-name">Мясная</div>
+                        <div class="item-description">4 вида мяса, томатный соус, сыры</div>
+                    </div>
+                    <div class="item-price">790₽</div>
+                </div>
+            </div>
+
+            <!-- Дополнительно -->
+            <div class="category">
+                <div class="category-title">➕ Дополнительно</div>
+                <div class="menu-item" data-name="Соусы" data-price="80">
+                    <div class="item-info">
+                        <div class="item-name">Соусы</div>
+                        <div class="item-description">BBQ, Чесночный, Острый, Сырный</div>
+                    </div>
+                    <div class="item-price">80₽</div>
+                </div>
+                <div class="menu-item" data-name="Картофель фри" data-price="250">
+                    <div class="item-info">
+                        <div class="item-name">Картофель фри</div>
+                        <div class="item-description">Хрустящий картофель с специями</div>
+                    </div>
+                    <div class="item-price">250₽</div>
+                </div>
+                <div class="menu-item" data-name="Луковые кольца" data-price="290">
+                    <div class="item-info">
+                        <div class="item-name">Луковые кольца</div>
+                        <div class="item-description">В пивном кляре</div>
+                    </div>
+                    <div class="item-price">290₽</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cart">
+            <h2>Корзина</h2>
+            <div id="cart-items"></div>
+            <div class="cart-total">Итого: <span id="cart-total">0₽</span></div>
+            <button class="order-button" onclick="showOrderConfirmation()">Сделать заказ</button>
+        </div>
+
+        <div class="order-confirmation" id="order-confirmation">
+            <div class="confirmation-content">
+                <h2>Подтверждение заказа</h2>
+                <div id="confirmation-items"></div>
+                <div class="cart-total">Итого: <span id="confirmation-total">0₽</span></div>
+                <div class="confirmation-buttons">
+                    <button class="confirm-button" onclick="confirmOrder()">Подтвердить</button>
+                    <button class="cancel-button" onclick="cancelOrder()">Отменить</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div>Время работы: 12:00 - 02:00</div>
+            <div class="wifi-code">
+                📶 WiFi: GlobusMusic | Пароль: music2025
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cart = [];
+
+        function addToCart(name, price) {
+            cart.push({ name, price: parseInt(price) });
+            updateCart();
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCart();
+        }
+
+        function updateCart() {
+            const cartItems = document.getElementById('cart-items');
+            cartItems.innerHTML = '';
+            let total = 0;
+
+            cart.forEach((item, index) => {
+                total += item.price;
+                const cartItem = document.createElement('div');
+                cartItem.className = 'cart-item';
+                cartItem.innerHTML = `
+                    <span>${item.name} - ${item.price}₽</span>
+                    <button onclick="removeFromCart(${index})">Удалить</button>
+                `;
+                cartItems.appendChild(cartItem);
+            });
+
+            document.getElementById('cart-total').textContent = `${total}₽`;
+        }
+
+        function showOrderConfirmation() {
+            if (cart.length === 0) {
+                alert('Корзина пуста!');
+                return;
+            }
+
+            const confirmationItems = document.getElementById('confirmation-items');
+            confirmationItems.innerHTML = '';
+            let total = 0;
+
+            cart.forEach(item => {
+                total += item.price;
+                const confirmationItem = document.createElement('div');
+                confirmationItem.className = 'confirmation-item';
+                confirmationItem.innerHTML = `<span>${item.name}</span><span>${item.price}₽</span>`;
+                confirmationItems.appendChild(confirmationItem);
+            });
+
+            document.getElementById('confirmation-total').textContent = `${total}₽`;
+            document.getElementById('order-confirmation').style.display = 'flex';
+        }
+
+        function confirmOrder() {
+            alert('Заказ успешно подтвержден!');
+            cart = [];
+            updateCart();
+            document.getElementById('order-confirmation').style.display = 'none';
+        }
+
+        function cancelOrder() {
+            document.getElementById('order-confirmation').style.display = 'none';
+        }
+
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const name = item.getAttribute('data-name');
+                const price = item.getAttribute('data-price');
+                addToCart(name, price);
+            });
+        });
+    </script>
+</body>
+</html>
