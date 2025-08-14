@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -331,6 +292,28 @@
             border-bottom: 1px solid rgba(255, 193, 7, 0.2);
         }
 
+        .table-selection {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .table-selection label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .table-selection input {
+            padding: 10px;
+            width: 100px;
+            text-align: center;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            background: #333;
+            color: #f5f5f5;
+            font-size: 1.2em;
+        }
+
         .confirmation-buttons {
             display: flex;
             justify-content: space-between;
@@ -535,6 +518,10 @@
                 <h2>Подтверждение заказа</h2>
                 <div id="confirmation-items"></div>
                 <div class="cart-total">Итого: <span id="confirmation-total">0₽</span></div>
+                <div class="table-selection">
+                    <label for="table-number">Выберите номер столика (1-100):</label>
+                    <input type="number" id="table-number" min="1" max="100" required>
+                </div>
                 <div class="confirmation-buttons">
                     <button class="confirm-button" onclick="confirmOrder()">Подтвердить</button>
                     <button class="cancel-button" onclick="cancelOrder()">Отменить</button>
@@ -601,11 +588,30 @@
             });
 
             document.getElementById('confirmation-total').textContent = `${total}₽`;
+            document.getElementById('table-number').value = ''; // Сброс поля столика
             document.getElementById('order-confirmation').style.display = 'flex';
         }
 
-        function confirmOrder() {
-            alert('Заказ успешно подтвержден!');
+        async function confirmOrder() {
+            const tableNumber = document.getElementById('table-number').value;
+            if (!tableNumber || tableNumber < 1 || tableNumber > 100) {
+                alert('Пожалуйста, выберите номер столика от 1 до 100.');
+                return;
+            }
+
+            const orderDetails = {
+                items: cart.map(item => `${item.name} - ${item.price}₽`),
+                total: cart.reduce((sum, item) => sum + item.price, 0),
+                table: tableNumber
+            };
+
+            try {
+                await sendToTelegram(orderDetails);
+                alert('Заказ успешно подтвержден и отправлен!');
+            } catch (error) {
+                alert('Ошибка при отправке заказа: ' + error.message);
+            }
+
             cart = [];
             updateCart();
             document.getElementById('order-confirmation').style.display = 'none';
@@ -613,6 +619,19 @@
 
         function cancelOrder() {
             document.getElementById('order-confirmation').style.display = 'none';
+        }
+
+        async function sendToTelegram(orderDetails) {
+            const botToken = '8403011468:AAH3oczyAeClCm_zrYDg9tNBnpYrvMP0ayI';
+            const chatId = '701300453';
+            const message = `Новый заказ!\n\nЗаказанные блюда:\n${orderDetails.items.join('\n')}\n\nОбщая сумма: ${orderDetails.total}₽\nСтолик: ${orderDetails.table}`;
+
+            const url = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`;
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('Ошибка отправки в Telegram');
+            }
         }
 
         document.querySelectorAll('.menu-item').forEach(item => {
