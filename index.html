@@ -17,7 +17,7 @@
             color: #f5f5f5;
             line-height: 1.6;
             min-height: 100vh;
-            padding: 20px 10px;
+            padding: 20px 10px 120px;
         }
 
         .container {
@@ -196,15 +196,58 @@
         }
 
         .cart {
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.5);
-            border-top: 1px solid rgba(255, 193, 7, 0.3);
+            position: fixed;
+            left: 50%;
+            bottom: 10px;
+            transform: translateX(-50%);
+            width: calc(100% - 20px);
+            max-width: 420px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 1100;
+            backdrop-filter: blur(8px);
+            overflow: hidden;
+        }
+
+        .cart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: linear-gradient(45deg, #333, #444);
+            color: #ffc107;
+            font-weight: 700;
+            font-size: 1em;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .cart-header .summary {
+            color: #ff8c00;
+            font-weight: 700;
+            font-size: 1em;
+        }
+
+        .cart-body {
+            padding: 12px 16px 16px;
+            display: none;
+            background: rgba(0, 0, 0, 0.6);
+        }
+
+        .cart.open .cart-body {
+            display: block;
+        }
+
+        .cart-items-scroll {
+            max-height: 160px;
+            overflow-y: auto;
+            margin-bottom: 10px;
         }
 
         .cart h2 {
-            font-size: 1.5em;
-            margin-bottom: 15px;
-            color: #ffc107;
+            display: none;
         }
 
         .cart-item {
@@ -223,10 +266,11 @@
             background: #ff4444;
             color: white;
             border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
+            padding: 8px 12px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 1em;
+            touch-action: manipulation;
         }
 
         .cart-total {
@@ -240,21 +284,28 @@
         .order-button {
             display: block;
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             background: linear-gradient(45deg, #ff8c00, #ffc107);
             color: #1a1a1a;
             text-align: center;
-            font-size: 1.2em;
+            font-size: 1.1em;
             font-weight: bold;
             border: none;
-            border-radius: 10px;
-            margin-top: 20px;
+            border-radius: 12px;
+            margin-top: 12px;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.15s ease;
+            touch-action: manipulation;
         }
 
         .order-button:hover {
             transform: scale(1.05);
+        }
+
+        .order-button:disabled {
+            opacity: 0.5;
+            transform: none;
+            cursor: not-allowed;
         }
 
         .order-confirmation {
@@ -267,14 +318,15 @@
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 2000;
         }
 
         .confirmation-content {
             background: #222;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 90%;
+            padding: 16px;
+            border-radius: 12px;
+            max-width: 520px;
+            width: calc(100% - 24px);
             max-height: 80%;
             overflow-y: auto;
             color: #f5f5f5;
@@ -352,6 +404,12 @@
             padding: 10px;
             margin-top: 10px;
             border: 1px dashed #ffc107;
+        }
+
+        .menu-item.active {
+            background: rgba(255, 193, 7, 0.12);
+            border-radius: 8px;
+            transform: translateY(-1px);
         }
     </style>
 </head>
@@ -506,11 +564,15 @@
             </div>
         </div>
 
-        <div class="cart">
-            <h2>Корзина</h2>
-            <div id="cart-items"></div>
-            <div class="cart-total">Итого: <span id="cart-total">0₽</span></div>
-            <button class="order-button" onclick="showOrderConfirmation()">Сделать заказ</button>
+        <div class="cart" id="cart">
+            <div class="cart-header" onclick="toggleCart()">
+                <span>Корзина <span id="cart-count">0</span></span>
+                <span class="summary">Итого: <span id="cart-total">0₽</span></span>
+            </div>
+            <div class="cart-body">
+                <div class="cart-items-scroll" id="cart-items"></div>
+                <button class="order-button" onclick="showOrderConfirmation()">Сделать заказ</button>
+            </div>
         </div>
 
         <div class="order-confirmation" id="order-confirmation">
@@ -520,7 +582,7 @@
                 <div class="cart-total">Итого: <span id="confirmation-total">0₽</span></div>
                 <div class="table-selection">
                     <label for="table-number">Выберите номер столика (1-100):</label>
-                    <input type="number" id="table-number" min="1" max="100" required>
+                    <input type="number" id="table-number" inputmode="numeric" pattern="[0-9]*" min="1" max="100" placeholder="№ столика" required>
                 </div>
                 <div class="confirmation-buttons">
                     <button class="confirm-button" onclick="confirmOrder()">Подтвердить</button>
@@ -543,6 +605,7 @@
         function addToCart(name, price) {
             cart.push({ name, price: parseInt(price) });
             updateCart();
+            toggleCart(true);
         }
 
         function removeFromCart(index) {
@@ -552,6 +615,8 @@
 
         function updateCart() {
             const cartItems = document.getElementById('cart-items');
+            const cartCountEl = document.getElementById('cart-count');
+            const orderBtn = document.querySelector('.order-button');
             cartItems.innerHTML = '';
             let total = 0;
 
@@ -567,6 +632,12 @@
             });
 
             document.getElementById('cart-total').textContent = `${total}₽`;
+            cartCountEl.textContent = cart.length;
+            orderBtn.disabled = cart.length === 0;
+            if (cart.length === 0) {
+                const cartEl = document.getElementById('cart');
+                cartEl.classList.remove('open');
+            }
         }
 
         function showOrderConfirmation() {
@@ -588,8 +659,10 @@
             });
 
             document.getElementById('confirmation-total').textContent = `${total}₽`;
-            document.getElementById('table-number').value = ''; // Сброс поля столика
+            const tableInput = document.getElementById('table-number');
+            if (!tableInput.value) tableInput.value = '';
             document.getElementById('order-confirmation').style.display = 'flex';
+            setTimeout(() => tableInput.focus(), 0);
         }
 
         async function confirmOrder() {
@@ -615,6 +688,8 @@
             cart = [];
             updateCart();
             document.getElementById('order-confirmation').style.display = 'none';
+            // Collapse cart after successful order
+            toggleCart(false);
         }
 
         function cancelOrder() {
@@ -634,12 +709,39 @@
             }
         }
 
+        function toggleCart(forceOpen) {
+            const cartEl = document.getElementById('cart');
+            if (typeof forceOpen === 'boolean') {
+                if (forceOpen) cartEl.classList.add('open'); else cartEl.classList.remove('open');
+                return;
+            }
+            cartEl.classList.toggle('open');
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Start with collapsed cart for mobile; will open on first add
+            toggleCart(false);
+            const tableInput = document.getElementById('table-number');
+            if (tableInput) {
+                tableInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        confirmOrder();
+                    }
+                });
+            }
+        });
+
         document.querySelectorAll('.menu-item').forEach(item => {
             item.addEventListener('click', () => {
                 const name = item.getAttribute('data-name');
                 const price = item.getAttribute('data-price');
                 addToCart(name, price);
             });
+            // Improve tap target feedback on mobile
+            item.addEventListener('touchstart', () => item.classList.add('active'), { passive: true });
+            item.addEventListener('touchend', () => item.classList.remove('active'));
+            item.addEventListener('touchcancel', () => item.classList.remove('active'));
         });
     </script>
 </body>
